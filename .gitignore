@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+node_modules/
+target/
+.expo/
+*.log
+.DS_Store
+.claude/skills/
