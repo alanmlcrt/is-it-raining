@@ -43,7 +43,7 @@ Statuts : `proposée`, `décidée`, `remplacée par Dn`.
 
 **Proposée, 2026-11-05.**
 
-- **Décision.** Alerte sur la dernière position vue dans l'app, ou sur un lieu fixé.
+- **Décision.** Alerte sur la dernière position vue dans l'app, ou sur la ville choisie.
 - **Pourquoi.** Permission « Toujours » intrusive, vérification plus dure sur les stores, positions à stocker.
 - **Coût assumé.** Si tu pars loin sans ouvrir l'app, l'alerte concerne l'ancien lieu. L'écran des réglages le dit clairement.
 
@@ -54,3 +54,17 @@ Statuts : `proposée`, `décidée`, `remplacée par Dn`.
 - **Décision.** Pas de publicité, pas d'abonnement.
 - **Conséquence.** Usage non commercial au sens d'Open-Meteo. Le serveur et le compte Apple restent à notre charge.
 - **À revoir si.** Un don ou un revenu apparaît : relire les conditions de chaque source.
+
+## D7 : un seul lieu actif
+
+**Décidée, 2026-11-05.**
+
+- **Décision.** Position actuelle par défaut, ou ville cherchée. Le widget et les alertes suivent ce lieu. Pas de liste de favoris.
+- **Recherche.** Open-Meteo Geocoding, directement depuis l'app.
+
+## D8 : le secret Météo-France reste sur le serveur
+
+**Décidée, 2026-11-05.**
+
+- **Décision.** `METEOFRANCE_APP_ID` en variable d'environnement. Le serveur crée et renouvelle seul un jeton d'une heure.
+- **Pourquoi.** La licence interdit de divulguer la clé, et une app publiée est décompilable.

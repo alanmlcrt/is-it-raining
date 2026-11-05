@@ -8,9 +8,10 @@ Rien d'autre ne démarre avant S1 et S2.
 
 | ID | Tâche | Critère de fin | Statut |
 | --- | --- | --- | --- |
-| S0 | `git init`, installer `rustup` | Un programme Rust compile, premier commit fait | en cours : git et rustup OK, linker MSVC manquant, premier commit à faire |
+| S0 | `git init`, installer `rustup` | Un programme Rust compile, premier commit fait | fini |
 | S1 | Créer un compte sur le portail Météo-France et lire les conditions de PIAF | Licence, gratuité et usage commercial écrits dans D1. Si bloqué : AROME-PI, puis Open-Meteo | fini : Licence ouverte 2.0, voir D1 |
-| S2 | Télécharger un run PIAF et le lire en Rust | Valeur lue à un point connu, comparée à l'image WMS. Taille, requêtes par run et latence notées | à faire |
+| S2 | Télécharger un run PIAF et le lire en Rust | Valeur lue à un point connu, comparée à une référence. Taille, requêtes par run et latence notées | fini : GRIB lu en Rust, identique au GeoTIFF |
+| S5 | Obtenir un accès serveur durable à PIAF | Le jeton se renouvelle sans action manuelle | fini : nouveau jeton obtenu avec `METEOFRANCE_APP_ID` et PIAF lu. Renouvellement à coder dans A1 |
 | S3 | Widget de test sur vrais téléphones, sans ouvrir l'app | Android tranché. Délai réel de rafraîchissement mesuré sur 24 h | à faire |
 | S4 | Choisir la bibliothèque UI | D4 passée de « proposée » à « décidée » | fini |
 
@@ -29,7 +30,7 @@ Rien d'autre ne démarre avant S1 et S2.
 | --- | --- | --- | --- |
 | B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | à faire |
 | B2 | Écran principal et bande de pluie | Quatre états, plus hors ligne. Checklist design | à faire |
-| B3 | Localisation et permission | Refus géré : choix manuel d'un lieu | à faire |
+| B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | à faire |
 | B4 | Réglages et À propos | Attribution visible | à faire |
 
 ## M3 : widgets

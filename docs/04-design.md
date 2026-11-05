@@ -32,6 +32,7 @@ Test de template : l'écran doit se lire de loin, comme un panneau d'affichage d
 └──────────────────────────────┘
 ```
 
+Le nom du lieu en haut est le bouton de recherche : il ouvre une feuille avec un champ, « Ma position » en premier, puis les résultats avec région.
 Aligné à gauche, pas de carte, pas d'onglets, pas d'illustration météo. Le geste de tirer vers le bas rafraîchit.
 La ligne de source en bas est une obligation de licence : elle ne disparaît jamais.
 

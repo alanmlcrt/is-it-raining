@@ -12,7 +12,7 @@ Open-Meteo est le plan B le plus simple, mais avec un pas de 15 min et une mise 
 
 | Source | Zone | Pas | Horizon | Mise à jour | Coût et licence | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Météo-France PIAF** | France métropole, 0,01° | 5 min | 180 min (spec API) ou 195 (doc) | 5 min, dispo 10 min après | Licence ouverte 2.0, gratuit, usage commercial autorisé, 100 req/min | **Source principale** |
+| **Météo-France PIAF** | France métropole, 0,01° | 5 min | 195 min (mesuré) | 5 min, dispo 10 min après | Licence ouverte 2.0, gratuit, usage commercial autorisé, 100 req/min | **Source principale** |
 | Météo-France AROME-PI | France | 15 min | 6 h | Horaire, dispo à H+30 | Licence ouverte 2.0, compte, 100 req/min | Plan B officiel, GRIB à traiter |
 | Météo-France Données Radar | France et outre-mer | Observation 5 min | Passé seulement | 5 min | Licence ouverte 2.0 | Utile si on fait notre propre extrapolation. Pas en v1 |
 | **Open-Meteo** `minutely_15` | Natif en Europe centrale et de l'Ouest et Amérique du Nord. Ailleurs : horaire interpolé | 15 min | 6 h (AROME 15 min) | Horaire pour AROME | CC BY 4.0. Gratuit si non commercial et sous 10 000 appels/jour | **Repli**, et prototype le plus rapide |
@@ -40,15 +40,39 @@ Technique, d'après le Swagger et le [guide d'utilisation](https://confluence-me
 - WCS et WMS, base `https://api.meteofrance.fr/pro/piaf/1.0`, en-tête `Authorization: Bearer <jeton>`.
 - Paramètre `TOTAL_PRECIPITATION_RATE__GROUND_OR_WATER_SURFACE`. Formats GeoTIFF et GRIB.
 - **Modèle déterministe.** La mention « probabilistes » de la fiche data.gouv est contredite par le guide.
-- **Une échéance par requête**, champ 2D uniquement, pas d'agrégation. Un run complet demande donc 36 appels, soit environ 7 par minute. Sous la limite, mais pas négligeable.
+- **Une échéance par requête**, champ 2D uniquement, pas d'agrégation. Un run complet demande donc 39 appels, soit environ 8 par minute.
 - `CoverageId` : `[paramètre]__[niveau]___[réseau ISO 8601 avec des points]`, listés par `GetCapabilities`. `DescribeCoverage` donne les axes `long lat height time`, temps en secondes.
 - Rétention de 5 jours, pas d'archive.
 
-Reste à trouver au spike S2 : syntaxe exacte de `subset`, unité réelle, poids d'un fichier. La section `GetCoverage` du guide n'a pas pu être lue par nos outils.
+### PIAF : mesures réelles
+
+Faites le 5 novembre 2026 sur le run de 16 h 55 UTC, en ligne à 17 h 05.
+
+| Mesure | Résultat |
+| --- | --- |
+| Authentification | `Authorization: Bearer <jeton>`. L'en-tête `apikey` répond `401` avec ce jeton |
+| Durée du jeton | **1 heure** |
+| Grille | 1651 × 1051, longitude -6 à 10,5, latitude 41 à 51,5, nord en haut, pas 0,01° |
+| Échéances | 39, de 300 à 11 700 s |
+| Durées de cumul | `PT5M`, `PT15M`, `PT30M`, `PT1H`, `PT3H`, à la fin du `CoverageId` |
+| Unité | **`kg m-2`, soit un cumul en mm, malgré le nom du paramètre.** Taux en mm/h : `PT5M` × 12 |
+| Vérification du cumul | Trois `PT5M` additionnés égalent le `PT15M` : ratio 1,0, écart max 0,0002 mm sur 34 838 pixels |
+| Plus petite valeur non nulle | 0,01 mm en 5 min, soit 0,12 mm/h |
+| Syntaxe | `subset=time(300)&subset=long(2.0,2.7)&subset=lat(48.6,49.1)` |
+| Découpage | Identique au fichier France entière sur une zone de pluie |
+| France, GRIB | 3,47 Mo, 0,7 s |
+| France, GeoTIFF | 13,9 Mo, 1,9 s, flottants 64 bits non compressés |
+| Zone de Paris, GeoTIFF | 35 Ko, 0,2 s |
+| Runs disponibles | 1 355, depuis le 1er novembre |
+| Lecture GRIB en Rust | Crate `grib` sans dépendance C : 71 ms par champ. Maximum et part de pluie identiques au GeoTIFF, nord en haut |
+
+**Volume :** 39 fichiers GRIB par run font environ 135 Mo, soit environ 39 Go par jour. Les quotas de bande passante existent mais ne sont pas publiés.
+
+Non vérifié : les valeurs n'ont pas été comparées à une pluie observée au sol.
 
 ### Fraîcheur réelle
 
-Un run PIAF arrive 10 min après son horaire. La donnée a donc au moins 10 min à sa réception, et l'horizon utile est d'environ 170 min.
+Un run PIAF arrive 10 min après son horaire. La donnée a donc au moins 10 min à sa réception, et l'horizon utile est d'environ 185 min.
 L'extrapolation radar perd de sa qualité après environ 2 h, et plus vite pour les orages. L'interface ne doit pas sur-promettre au-delà.
 
 ### Test réel d'Open-Meteo

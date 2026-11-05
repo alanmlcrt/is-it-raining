@@ -31,13 +31,17 @@ Une seule crate, modules dans `src/` :
 | Module | Rôle |
 | --- | --- |
 | `ingest` | Télécharge chaque run PIAF, le décode, remplace la grille en mémoire d'un coup |
-| `forecast` | Pour un point : série de 36 pas, début et fin de pluie, état |
+| `forecast` | Pour un point : série de 39 pas, début et fin de pluie, état |
 | `api` | Routes HTTP |
 | `alerts` | Après chaque run, décide qui notifier |
 | `push` | Envoi APNs et FCM |
 
-La grille vit en mémoire et se reconstruit au prochain run après un redémarrage. La base ne stocke que les abonnements.
-Une requête PIAF ne renvoie qu'une échéance : 36 appels par run, étalés pour rester sous 100 req/min. Sur `429`, attendre et garder la grille précédente tant qu'elle est fraîche. La taille de la grille est à mesurer au spike S2.
+La grille vit en mémoire et se reconstruit au prochain run après un redémarrage. Échantillonnage : `ligne = (51,5 - lat) / 0,01`, `colonne = (lon + 6) / 0,01`. La base ne stocke que les abonnements.
+Une requête PIAF ne renvoie qu'une échéance : 39 appels par run, étalés pour rester sous 100 req/min. Sur `429`, attendre et garder la grille précédente tant qu'elle est fraîche.
+Les valeurs `PT5M` sont des cumuls en mm : les multiplier par 12 pour obtenir des mm/h. En `f32`, une grille de 39 échéances occupe environ 270 Mo.
+Le jeton est géré par le serveur : voir « Authentification Météo-France ».
+
+`ponytail:` grille France entière, environ 39 Go téléchargés par jour. Si un quota bloque : un run sur deux, ou téléchargement par zone à la demande (35 Ko par échéance pour Paris).
 Toutes les réponses portent `source` et `run_at`, car la licence impose de citer la source et la date de mise à jour.
 
 ### Paramètres à calibrer
@@ -46,10 +50,47 @@ Ce sont de vraies variables d'environnement : le ressenti de la pluie se règle 
 
 | Variable | Départ | Rôle |
 | --- | --- | --- |
-| `RAIN_THRESHOLD_MM_H` | 0,1 | À partir de quand on dit « il pleut » |
+| `RAIN_THRESHOLD_MM_H` | 0,1 | À partir de quand on dit « il pleut ». PIAF ne descend pas sous 0,12 mm/h : au départ, toute valeur non nulle compte |
 | `MIN_WET_STEPS` | 2 | Pas consécutifs requis : ignore une averse d'un seul pas |
 | `MAX_DATA_AGE_MIN` | 20 | Au-delà : repli ou `unknown` |
 | `DRY_RESET_MIN` | 30 | Temps sec qui clôt un épisode et autorise une nouvelle alerte |
+
+## Authentification Météo-France
+
+L'app ne contient aucune clé et n'appelle jamais Météo-France. Elle parle à notre serveur, qui seul détient l'identifiant. Mettre une clé dans l'app la rendrait extractible, et la licence l'interdit.
+
+| Environnement | Où vit le secret |
+| --- | --- |
+| Développement | `.env`, ignoré par git |
+| Production | Variable d'environnement chiffrée dans Dokploy |
+
+`METEOFRANCE_APP_ID` est la valeur `Basic` de la commande `curl` fournie par le portail avec le jeton OAuth2. C'est le secret durable, le jeton en découle.
+
+```text
+POST https://portail-api.meteofrance.fr/token
+Authorization: Basic <METEOFRANCE_APP_ID>
+→ { "access_token": "…" }, valable 1 heure
+```
+
+Testé le 5 novembre 2026 : `/token` répond `200` avec `expires_in: 3600`, et le jeton obtenu lit PIAF. Deux secondes après un second appel, l'ancien jeton fonctionnait encore. Le client [Meteole](https://github.com/MAIF/meteole) de la MAIF dit au contraire qu'un nouveau jeton invalide le précédent : on garde donc la prudence ci-dessous.
+
+- Garder le jeton en mémoire. Le renouveler avant expiration, et aussi sur `401`.
+- Un seul renouvellement à la fois, derrière un verrou.
+- Une application Météo-France par environnement, pour que le développement ne coupe pas la production.
+- Ne jamais journaliser le jeton ni l'identifiant.
+
+Non vérifié : la durée de vie de l'Application ID lui-même. Alternative : le type « API Key » du portail, envoyé dans l'en-tête `apikey`. Elle a une durée de validité choisie à la génération, donc une date d'expiration à surveiller, et elle n'a pas encore été testée.
+
+## Lieu et recherche de ville
+
+| Besoin | Solution |
+| --- | --- |
+| Position actuelle | `expo-location`, premier plan |
+| Nom du lieu actuel | `reverseGeocodeAsync` d'`expo-location` |
+| Recherche de ville | Appel direct depuis l'app à `https://geocoding-api.open-meteo.com/v1/search?name=…&language=fr&count=5`, sans clé |
+
+Testé le 5 novembre 2026 : Open-Meteo trouve Saint-Malo dès `saint mal`, sur données GeoNames. La Géoplateforme de l'IGN (`data.geopf.fr/geocodage/search`, `type=municipality`) ne renvoie rien sur ce mot incomplet mais trouve `saint malo` : elle sert de repli pour la France.
+Sélection d'une ville : garder ses coordonnées, puis appeler `/v1/rain`. Attendre 300 ms après la frappe et partir de 2 caractères. Une ville hors zone PIAF passe sur le repli Open-Meteo, avec sa précision de 15 min.
 
 ## Contrat d'API
 
@@ -98,7 +139,7 @@ Après chaque run, pour chaque abonnement :
 3. Un épisode se termine après `DRY_RESET_MIN` de temps sec.
 
 Si la donnée est périmée, ne rien envoyer. Un jeton refusé par APNs ou FCM supprime l'abonnement.
-Le lieu suivi est la dernière position vue quand l'app est ouverte, ou un lieu fixé dans les réglages. Il n'y a pas de suivi en arrière-plan, donc pas de permission « Toujours ».
+Le lieu suivi est le lieu actif : la dernière position vue quand l'app est ouverte, ou la ville choisie. Il n'y a pas de suivi en arrière-plan, donc pas de permission « Toujours ».
 
 ## Widgets
 

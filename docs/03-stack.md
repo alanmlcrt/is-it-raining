@@ -11,13 +11,13 @@ Versions et chiffres relevés sur npm, crates.io et GitHub le 5 novembre 2026. V
 | UI | **HeroUI Native** + Uniwind | 1.0 / 1.13 | Réglages seulement, écran principal sur mesure (D4) |
 | Icônes | `lucide-react-native` | 1.69 | Une seule famille |
 | Données client | `fetch` + état React | | TanStack Query seulement si le cache devient pénible |
-| Bande de pluie | `View` natives | | 36 barres : pas de bibliothèque de graphiques |
+| Bande de pluie | `View` natives | | Une barre par pas : pas de bibliothèque de graphiques |
 | Notifications | `expo-notifications` | Selon SDK | Jeton natif, envoi par notre serveur |
 | Localisation | `expo-location` | Selon SDK | Premier plan seulement |
 | Serveur HTTP | `axum` + `tokio` | 0.8 / 1.54 | Très utilisés |
 | Client HTTP | `reqwest` | 0.13 | |
 | Base | `rusqlite` | 0.41 | Plus simple que `sqlx` pour une table ou deux |
-| Décodage météo | **GeoTIFF ou `grib`**, selon S2 | grib 0.20 | `grib` : environ 59 000 téléchargements récents, à tester sur un vrai fichier PIAF |
+| Décodage météo | GRIB via `grib` | 0.20 | `default-features = false` : pas de dépendance C. 4 fois plus léger que le GeoTIFF. Décodage France : 71 ms |
 | Push iOS | `a2` | 0.10 | Environ 67 000 téléchargements récents. Sinon appel HTTP/2 direct |
 | Push Android | FCM HTTP v1 via `reqwest` | | Pas de crate nécessaire |
 
@@ -60,6 +60,6 @@ Choix par défaut : **SwiftUI via apple-targets sur iOS.** Android tranché au s
 
 ## Prérequis sur ce poste
 
-Sur le PC Windows : Node 22, Rust 1.99 via `rustup`. **Linker MSVC manquant** : `rustc` échoue sur `link.exe`.
+Sur le PC Windows : Node 22, Rust 1.99 via `rustup`, Visual Studio Build Tools 2022 (C++).
 Sur le Mac : Xcode, pour le widget SwiftUI et les builds iOS.
 Skill `heroui-native` sur une nouvelle machine : `npx skills add heroui-inc/heroui --skill heroui-native --agent claude-code codex`, car `.claude/skills/` contient un lien absolu et reste hors de git.

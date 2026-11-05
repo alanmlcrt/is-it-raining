@@ -7,10 +7,11 @@ Ouvrir l'app, regarder le widget ou recevoir une notification, et savoir en une 
 ## Périmètre v1
 
 - **Zone :** France métropolitaine en précision 5 min. Ailleurs en Europe centrale et de l'Ouest, précision 15 min si le repli Open-Meteo est gardé.
+- **Lieu :** la position actuelle par défaut, ou une ville cherchée. Un seul lieu actif à la fois, repris par le widget et les alertes.
 - **Écran principal :** la réponse, puis la bande de pluie sur 3 h.
-- **Réglages :** délai d'alerte, heures calmes, lieu suivi, À propos.
+- **Réglages :** délai d'alerte, heures calmes, À propos.
 - **Widgets :** petit format iOS et Android. Écran verrouillé iOS si le spike S3 le permet.
-- **Notification :** une alerte par épisode de pluie, sur le lieu suivi.
+- **Notification :** une alerte par épisode de pluie, sur le lieu actif.
 
 ## Les quatre états
 
