@@ -30,7 +30,7 @@ Rien d'autre ne démarre avant S1 et S2.
 | --- | --- | --- | --- |
 | B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | en cours : tourne sur émulateur Android, pas encore sur téléphone |
 | B2 | Écran principal et bande de pluie | Quatre états, plus hors ligne. Checklist design | en cours : états vus sur émulateur, clair et sombre. Reste la checklist : iOS, lecteur d'écran, animations réduites, `unslop` |
-| B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | à faire |
+| B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | en cours |
 | B4 | Réglages et À propos | Attribution visible | à faire |
 
 ## M3 : widgets

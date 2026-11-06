@@ -81,8 +81,10 @@ Avant la première soumission :
 
 ### Build Android sous Windows
 
-Le chemin du dépôt est trop long pour CMake, et un lecteur `subst` échoue car Node résout le vrai chemin. Copier `app/` vers `C:\iirpp`, puis y lancer `expo prebuild -p android` et `gradlew assembleDebug -PreactNativeArchitectures=x86_64`. À refaire seulement si une dépendance native change : le JS vient de Metro, lancé depuis le dépôt.
+Le chemin du dépôt est trop long pour CMake, et un lecteur `subst` échoue car Node résout le vrai chemin. Copier `app/` vers `C:\iir\app`, puis y lancer `expo prebuild -p android` et `gradlew assembleDebug -PreactNativeArchitectures=x86_64`. À refaire seulement si une dépendance native change : le JS vient de Metro, lancé depuis le dépôt.
 Arrêter ensuite le daemon avec `gradlew --stop`, il garde plusieurs Go de RAM.
+
+Pour un téléphone, sans Metro : mettre `EXPO_PUBLIC_API_URL=https://rain.alanmlcrt.fr` dans le `.env` de la copie, lancer `gradlew assembleRelease "-PreactNativeArchitectures=arm64-v8a,x86_64" --no-daemon`, puis `adb install -r` sur `app-release.apk`. Compter 11 min à froid. L'URL est figée dans le paquet. La signature reste celle de debug : à remplacer avant les stores.
 
 ## Quand une règle gêne
 

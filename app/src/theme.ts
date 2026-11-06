@@ -25,6 +25,10 @@ export const space = { bar: 2, s: 8, m: 16, edge: 24, block: 32 };
 
 export const band = { height: 96 };
 
+export const radius = { row: 10 };
+
+export const size = { row: 48 };
+
 export const font = { regular: 'Geist_400Regular', medium: 'Geist_500Medium' };
 
 export const type = {

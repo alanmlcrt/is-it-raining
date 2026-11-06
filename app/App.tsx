@@ -1,5 +1,6 @@
 import { Geist_400Regular, Geist_500Medium } from '@expo-google-fonts/geist';
 import { useFonts } from 'expo-font';
+import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -7,7 +8,9 @@ import {
   Animated,
   AppState,
   Easing,
+  Linking,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar as NativeStatusBar,
@@ -16,6 +19,8 @@ import {
   View,
 } from 'react-native';
 
+import { type Place, round2 } from './src/place';
+import { PlaceSheet } from './src/PlaceSheet';
 import {
   answer,
   bandSentence,
@@ -27,11 +32,9 @@ import {
   type Step,
   upcoming,
 } from './src/rain';
-import { band, motion, space, type, useColors } from './src/theme';
+import { band, motion, size, space, type, useColors } from './src/theme';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
-// ponytail: lieu fixe, dans la zone du serveur (D9). Position et recherche de ville : B3.
-const PLACE = { name: 'Paris', lat: 48.86, lon: 2.35 };
 const REFRESH_MS = 60_000;
 const TIMEOUT_MS = 10_000;
 // ponytail: marges système approchées. react-native-safe-area-context ne compile pas sous
@@ -41,29 +44,36 @@ const INSET_TOP = Platform.OS === 'android' ? (NativeStatusBar.currentHeight ?? 
 const INSET_BOTTOM = 48;
 
 /** La dernière réponse, ou `null` dès qu'un appel échoue : jamais de réponse ancienne à l'écran. */
-function useRain() {
+function useRain(place: Place | null) {
   const [rain, setRain] = useState<Rain | null>(null);
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
+    if (place === null) return;
+    const call = ++latest.current;
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
     try {
-      const url = `${API_URL}/v1/rain?lat=${PLACE.lat}&lon=${PLACE.lon}`;
+      const url = `${API_URL}/v1/rain?lat=${place.lat}&lon=${place.lon}`;
       const res = await fetch(url, { signal: abort.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setRain(await res.json());
+      const body: Rain = await res.json();
+      // Une réponse pour l'ancien lieu ne doit pas s'afficher sous le nouveau.
+      if (call !== latest.current) return;
+      setRain(body);
       setFailed(false);
     } catch {
+      if (call !== latest.current) return;
       setRain(null);
       setFailed(true);
     } finally {
       clearTimeout(timer);
       setNow(new Date());
     }
-  }, []);
+  }, [place]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -72,6 +82,8 @@ function useRain() {
   }, [load]);
 
   useEffect(() => {
+    setRain(null);
+    setFailed(false);
     load();
     const interval = setInterval(load, REFRESH_MS);
     const appState = AppState.addEventListener('change', (state) => {
@@ -85,6 +97,45 @@ function useRain() {
 
   return { rain, failed, refreshing, refresh, now };
 }
+
+type Located = 'ok' | 'denied' | 'blocked' | 'failed';
+
+/** Le lieu actif : la position au démarrage, ou la ville choisie. Premier plan seulement (D5). */
+function usePlace() {
+  // ponytail: la ville choisie n'est pas gardée au redémarrage. Stockage local avec les réglages (B4).
+  const [place, setPlace] = useState<Place | null>(null);
+  const [locating, setLocating] = useState(true);
+
+  const locate = useCallback(async (): Promise<Located> => {
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) return permission.canAskAgain ? 'denied' : 'blocked';
+      const { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const lat = round2(coords.latitude);
+      const lon = round2(coords.longitude);
+      const [address] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon }).catch(
+        () => [],
+      );
+      setPlace({ name: address?.city ?? address?.district ?? 'Ma position', lat, lon });
+      return 'ok';
+    } catch {
+      return 'failed';
+    } finally {
+      setLocating(false);
+    }
+  }, []);
+
+  return { place, setPlace, locating, locate };
+}
+
+const LOCATE_NOTICE: Record<Exclude<Located, 'ok'>, string> = {
+  denied: 'Sans ta position, cherche une ville',
+  blocked: 'Position refusée dans les réglages. Cherche une ville',
+  failed: 'Position introuvable. Cherche une ville',
+};
 
 function RainBand({ steps, rain }: { steps: Step[]; rain: Rain | null }) {
   const colors = useColors();
@@ -142,8 +193,36 @@ function RainBand({ steps, rain }: { steps: Step[]; rain: Rain | null }) {
 
 function Screen() {
   const colors = useColors();
-  const { rain, failed, refreshing, refresh, now } = useRain();
-  const reply = answer(rain, now);
+  const { place, setPlace, locating, locate } = usePlace();
+  const { rain, failed, refreshing, refresh, now } = useRain(place);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [notice, setNotice] = useState<string>();
+
+  const findMe = useCallback(async () => {
+    const located = await locate();
+    if (located === 'ok') {
+      setNotice(undefined);
+      setSheetOpen(false);
+      return;
+    }
+    setNotice(LOCATE_NOTICE[located]);
+    setSheetOpen(true);
+  }, [locate]);
+
+  useEffect(() => {
+    findMe();
+  }, [findMe]);
+
+  const onLocate = useCallback(() => {
+    // Android et iOS ne redemandent plus : seuls les réglages peuvent rendre la permission.
+    if (notice === LOCATE_NOTICE.blocked) Linking.openSettings();
+    else findMe();
+  }, [findMe, notice]);
+
+  const reply =
+    place === null
+      ? { lead: locating ? 'Position en cours' : 'Choisis un lieu' }
+      : answer(rain, now);
   const known = reply.big !== undefined;
 
   return (
@@ -157,9 +236,16 @@ function Screen() {
         <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.text2} />
       }
     >
-      <Text accessibilityRole="header" style={[type.detail, { color: colors.text }]}>
-        {PLACE.name}
-      </Text>
+      <Pressable
+        accessibilityHint="Changer de lieu"
+        accessibilityRole="button"
+        onPress={() => setSheetOpen(true)}
+        style={styles.place}
+      >
+        <Text numberOfLines={1} style={[type.detail, { color: colors.text }]}>
+          {place?.name ?? 'Choisir un lieu'}
+        </Text>
+      </Pressable>
 
       <View accessible accessibilityLabel={spokenAnswer(reply)} style={styles.answer}>
         <Text style={[type.lead, { color: known ? colors.text : colors.text2 }]}>{reply.lead}</Text>
@@ -184,6 +270,18 @@ function Screen() {
         {sourceLine(rain, now)}
       </Text>
       <StatusBar style="auto" />
+      <PlaceSheet
+        insetTop={INSET_TOP}
+        notice={notice}
+        onClose={() => setSheetOpen(false)}
+        onLocate={onLocate}
+        onPick={(picked) => {
+          setPlace({ name: picked.name, lat: picked.lat, lon: picked.lon });
+          setNotice(undefined);
+          setSheetOpen(false);
+        }}
+        visible={sheetOpen}
+      />
     </ScrollView>
   );
 }
@@ -196,6 +294,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1, paddingHorizontal: space.edge },
+  place: { minHeight: size.row, justifyContent: 'center' },
   answer: { flex: 1, justifyContent: 'center', paddingVertical: space.block },
   bars: { flexDirection: 'row', alignItems: 'flex-end', height: band.height, gap: space.bar },
   barSlot: { flex: 1 },
