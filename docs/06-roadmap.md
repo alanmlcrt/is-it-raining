@@ -19,8 +19,8 @@ Rien d'autre ne démarre avant S1 et S2.
 
 | ID | Tâche | Critère de fin | Statut |
 | --- | --- | --- | --- |
-| A1 | Ingestion toutes les 5 min, grille en mémoire | Tourne 24 h sans trou non détecté | à faire |
-| A2 | `GET /v1/rain`, états et fraîcheur | Tests de `05-process-dev.md` verts | à faire |
+| A1 | Ingestion toutes les 5 min, grille en mémoire | Tourne 24 h sans trou non détecté | en cours : jeton renouvelé seul à 55 min sur l'API réelle. Veille du PC la nuit du 5 novembre : trou de 114 runs détecté, reprise seule. 24 h à refaire sur une machine sans veille |
+| A2 | `GET /v1/rain`, états et fraîcheur | Tests de `05-process-dev.md` verts | fini : tests verts, réponse réelle `raining` puis `unknown` à 20 min |
 | A3 | Repli Open-Meteo | Hors France ou PIAF en panne : `source` et `step_minutes` corrects | à faire |
 | A4 | Déploiement Docker | URL HTTPS publique qui répond | à faire |
 
@@ -28,8 +28,8 @@ Rien d'autre ne démarre avant S1 et S2.
 
 | ID | Tâche | Critère de fin | Statut |
 | --- | --- | --- | --- |
-| B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | à faire |
-| B2 | Écran principal et bande de pluie | Quatre états, plus hors ligne. Checklist design | à faire |
+| B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | en cours : tourne sur émulateur Android, pas encore sur téléphone |
+| B2 | Écran principal et bande de pluie | Quatre états, plus hors ligne. Checklist design | en cours : états vus sur émulateur, clair et sombre. Reste la checklist : iOS, lecteur d'écran, animations réduites, `unslop` |
 | B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | à faire |
 | B4 | Réglages et À propos | Attribution visible | à faire |
 

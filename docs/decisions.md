@@ -68,3 +68,13 @@ Statuts : `proposée`, `décidée`, `remplacée par Dn`.
 
 - **Décision.** `METEOFRANCE_APP_ID` en variable d'environnement. Le serveur crée et renouvelle seul un jeton d'une heure.
 - **Pourquoi.** La licence interdit de divulguer la clé, et une app publiée est décompilable.
+
+## D9 : une zone fixe, pas la France entière
+
+**Décidée, 2026-11-05.**
+
+- **Contexte.** Les quotas de bande passante ne sont pas publiés et la France entière représente environ 39 Go par jour.
+- **Décision.** Le serveur ingère une seule zone, fixée par `PIAF_BBOX`, obligatoire et sans valeur par défaut. Zone de départ : Paris, `2.2,2.5,48.8,48.95`.
+- **Pourquoi.** Un utilisateur n'a besoin que de sa zone, et un oubli de configuration ne doit pas lancer une ingestion complète.
+- **Coût assumé.** Hors de la zone, la réponse est `unknown` jusqu'au repli de A3.
+- **À revoir avant la bêta (E3).** Zones à la demande autour des utilisateurs actifs : 39 requêtes par zone et par run, donc environ 12 zones au plus sous 100 req/min. Au-delà, la France entière reste à 39 requêtes.

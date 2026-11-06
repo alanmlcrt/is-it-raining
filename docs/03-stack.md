@@ -10,12 +10,18 @@ Versions et chiffres relevés sur npm, crates.io et GitHub le 5 novembre 2026. V
 | Navigation | Expo Router | Livré avec Expo | Deux écrans, sans plus |
 | UI | **HeroUI Native** + Uniwind | 1.0 / 1.13 | Réglages seulement, écran principal sur mesure (D4) |
 | Icônes | `lucide-react-native` | 1.69 | Une seule famille |
+| Police | `@expo-google-fonts/geist` + `expo-font` | 0.4 / 58.0 | Geist, voir `04-design.md` |
+| Mode sombre Android | `expo-system-ui` | Selon SDK | Requis pour `userInterfaceStyle: automatic` |
+| Build de développement | `expo-dev-client` | 58.0 | Expo Go ne convient pas à cause des widgets |
+| Tests de l'app | `node --test` | Node 22 | Sur `src/rain.ts`, sans Jest : pas de dépendance à ajouter |
 | Données client | `fetch` + état React | | TanStack Query seulement si le cache devient pénible |
 | Bande de pluie | `View` natives | | Une barre par pas : pas de bibliothèque de graphiques |
 | Notifications | `expo-notifications` | Selon SDK | Jeton natif, envoi par notre serveur |
 | Localisation | `expo-location` | Selon SDK | Premier plan seulement |
 | Serveur HTTP | `axum` + `tokio` | 0.8 / 1.54 | Très utilisés |
-| Client HTTP | `reqwest` | 0.13 | |
+| Client HTTP | `reqwest` | 0.13 | `gzip` : `GetCapabilities` passe d'environ 2 Mo à 58 Ko à chaque cycle |
+| Dates | `chrono` | 0.4 | Lire les `CoverageId`, écrire les dates RFC 3339 de l'API |
+| JSON | `serde` | 1 | Réponses de l'API et jeton Météo-France |
 | Base | `rusqlite` | 0.41 | Plus simple que `sqlx` pour une table ou deux |
 | Décodage météo | GRIB via `grib` | 0.20 | `default-features = false` : pas de dépendance C. 4 fois plus léger que le GeoTIFF. Décodage France : 71 ms |
 | Push iOS | `a2` | 0.10 | Environ 67 000 téléchargements récents. Sinon appel HTTP/2 direct |
@@ -61,5 +67,7 @@ Choix par défaut : **SwiftUI via apple-targets sur iOS.** Android tranché au s
 ## Prérequis sur ce poste
 
 Sur le PC Windows : Node 22, Rust 1.99 via `rustup`, Visual Studio Build Tools 2022 (C++).
+
+**Limite de build Android sous Windows.** Le `ninja` 1.10 du SDK ne gère pas les chemins longs, même avec `LongPathsEnabled=1`. `react-native-safe-area-context` dépasse 260 caractères, même depuis `C:\iir`. Il est donc retiré pour l'instant, avec des marges approchées dans `App.tsx`. HeroUI l'exige : à régler avant B4, avec un CMake récent dans le SDK ou un build EAS.
 Sur le Mac : Xcode, pour le widget SwiftUI et les builds iOS.
 Skill `heroui-native` sur une nouvelle machine : `npx skills add heroui-inc/heroui --skill heroui-native --agent claude-code codex`, car `.claude/skills/` contient un lien absolu et reste hors de git.

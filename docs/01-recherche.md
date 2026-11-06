@@ -65,6 +65,12 @@ Faites le 5 novembre 2026 sur le run de 16 h 55 UTC, en ligne à 17 h 05.
 | Zone de Paris, GeoTIFF | 35 Ko, 0,2 s |
 | Runs disponibles | 1 355, depuis le 1er novembre |
 | Lecture GRIB en Rust | Crate `grib` sans dépendance C : 71 ms par champ. Maximum et part de pluie identiques au GeoTIFF, nord en haut |
+| `GetCapabilities` | 58 Ko en gzip, 2,1 Mo décompressé, 0,5 s, 6 955 `CoverageId` |
+| GRIB découpé | 1 Ko pour 0,2° × 0,2°, 20 Ko pour 1° × 1°. Bornes recalées sur la grille, vers l'intérieur |
+| Valeurs manquantes | Aucune : pas de bitmap, 0 NaN sur la France. Une zone sans radar ne se distingue donc pas d'une zone sèche. Non vérifié : ce que vaut la donnée loin des radars |
+| Période du cumul | L'échéance 300 couvre `[run, run + 5 min]` d'après l'en-tête GRIB |
+| Run complet, 1° × 1° | 39 fichiers, 0,80 Mo, environ 30 s |
+| Âge à l'arrivée en boucle | 588 s sur un seul run, téléchargement compris. Échantillon trop court pour conclure |
 
 **Volume :** 39 fichiers GRIB par run font environ 135 Mo, soit environ 39 Go par jour. Les quotas de bande passante existent mais ne sont pas publiés.
 

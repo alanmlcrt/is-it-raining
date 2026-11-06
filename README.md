@@ -3,7 +3,7 @@
 App météo mobile à une seule question : dans combien de minutes il va pleuvoir ?
 Un écran, des widgets, une notification avant la pluie. « Is it raining » est un nom de travail.
 
-**État : cadrage. Aucun code pour l'instant.** Suivi dans [docs/06-roadmap.md](docs/06-roadmap.md).
+**État : serveur en cours (M1), écran principal de l'app sur émulateur (M2).** Suivi dans [docs/06-roadmap.md](docs/06-roadmap.md).
 
 ## Documentation
 

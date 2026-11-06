@@ -37,11 +37,13 @@ Une seule crate, modules dans `src/` :
 | `push` | Envoi APNs et FCM |
 
 La grille vit en mémoire et se reconstruit au prochain run après un redémarrage. Échantillonnage : `ligne = (51,5 - lat) / 0,01`, `colonne = (lon + 6) / 0,01`. La base ne stocke que les abonnements.
-Une requête PIAF ne renvoie qu'une échéance : 39 appels par run, étalés pour rester sous 100 req/min. Sur `429`, attendre et garder la grille précédente tant qu'elle est fraîche.
-Les valeurs `PT5M` sont des cumuls en mm : les multiplier par 12 pour obtenir des mm/h. En `f32`, une grille de 39 échéances occupe environ 270 Mo.
+Une requête PIAF ne renvoie qu'une échéance : 39 appels par run, espacés de 700 ms pour rester sous 100 req/min, soit environ 30 s par run. Sur `429` ou `5xx`, attendre `Retry-After` et réessayer jusqu'à 3 fois. Une erreur restante abandonne le run et garde la grille précédente tant qu'elle est fraîche. Chaque run n'a qu'un essai : le pire cas de volume reste un run toutes les 5 min, et le run suivant prend le relais.
+Le dernier run vient de `GetCapabilities` (58 Ko en gzip), interrogé toutes les 30 s à partir de 14 min après le run en place. Le journal donne pour chaque run le volume cumulé, le nombre de requêtes, l'âge à l'arrivée et les runs manqués.
+Les valeurs `PT5M` sont des cumuls en mm : les multiplier par 12 pour obtenir des mm/h. L'échéance `300` couvre `[run, run + 5 min]`, et la valeur est étiquetée en fin de pas. En `f32`, une grille de 39 échéances occupe environ 270 Mo, le double pendant le remplacement.
+La géométrie se lit dans chaque fichier GRIB, car le WCS recale la zone demandée sur la grille. Tout fichier dont le run, l'échéance ou la grille ne correspondent pas à la demande fait échouer le run.
 Le jeton est géré par le serveur : voir « Authentification Météo-France ».
 
-`ponytail:` grille France entière, environ 39 Go téléchargés par jour. Si un quota bloque : un run sur deux, ou téléchargement par zone à la demande (35 Ko par échéance pour Paris).
+`ponytail:` une seule zone fixe (D9). Plusieurs lieux : zones à la demande, limitées à environ 12 par les 39 requêtes de chaque run.
 Toutes les réponses portent `source` et `run_at`, car la licence impose de citer la source et la date de mise à jour.
 
 ### Paramètres à calibrer
@@ -54,6 +56,16 @@ Ce sont de vraies variables d'environnement : le ressenti de la pluie se règle 
 | `MIN_WET_STEPS` | 2 | Pas consécutifs requis : ignore une averse d'un seul pas |
 | `MAX_DATA_AGE_MIN` | 20 | Au-delà : repli ou `unknown` |
 | `DRY_RESET_MIN` | 30 | Temps sec qui clôt un épisode et autorise une nouvelle alerte |
+
+Trois autres réglent l'exécution :
+
+| Variable | Rôle |
+| --- | --- |
+| `PIAF_BBOX` | Obligatoire : `lon_min,lon_max,lat_min,lat_max`. Voir D9 |
+| `PIAF_MAX_RUNS` | Développement : arrête l'ingestion après N runs. L'API continue et passe en `unknown` |
+| `BIND_ADDR` | `127.0.0.1:8080` par défaut |
+
+En local, depuis `server/` sous Git Bash : `set -a; . ../.env; set +a; cargo run`.
 
 ## Authentification Météo-France
 
@@ -74,8 +86,8 @@ Authorization: Basic <METEOFRANCE_APP_ID>
 
 Testé le 5 novembre 2026 : `/token` répond `200` avec `expires_in: 3600`, et le jeton obtenu lit PIAF. Deux secondes après un second appel, l'ancien jeton fonctionnait encore. Le client [Meteole](https://github.com/MAIF/meteole) de la MAIF dit au contraire qu'un nouveau jeton invalide le précédent : on garde donc la prudence ci-dessous.
 
-- Garder le jeton en mémoire. Le renouveler avant expiration, et aussi sur `401`.
-- Un seul renouvellement à la fois, derrière un verrou.
+- Garder le jeton en mémoire. Le renouveler 5 min avant expiration, et aussi sur `401`.
+- Un seul renouvellement à la fois : une seule tâche possède le client PIAF, sans verrou.
 - Une application Météo-France par environnement, pour que le développement ne coupe pas la production.
 - Ne jamais journaliser le jeton ni l'identifiant.
 
@@ -110,7 +122,17 @@ Sélection d'une ville : garder ses coordonnées, puis appeler `/v1/rain`. Atten
 ```
 
 Le client calcule `rain_starts_at - now`, puis arrondit vers le haut selon `step_minutes`. Ainsi le compte à rebours reste juste entre deux appels, sans logique de pluie côté client.
-Coordonnées hors bornes : `400`. Réponse en cache HTTP jusqu'au prochain run attendu.
+Coordonnées invalides (hors de ±90° et ±180°, absentes ou illisibles) : `400`. Réponse en cache HTTP jusqu'au prochain run attendu, sans dépasser la fraîcheur de la donnée.
+
+| Champ | Règle |
+| --- | --- |
+| `series` | 39 pas du run, passés compris. `t` est la fin du pas. Vide en `unknown` |
+| `rain_starts_at` | Début du premier pas de l'épisode à venir ou en cours, donc déjà passé en `raining` |
+| `rain_ends_at` | `null` si la pluie dure jusqu'à `horizon_ends_at` |
+| `horizon_ends_at` | `run_at` + 195 min, fin du dernier pas |
+
+`unknown` : `series` vide, `step_minutes` et dates de pluie à `null`, `Cache-Control: no-store`. Run périmé : `source` et `run_at` restent ceux du dernier run. Aucun run ou point hors zone : ils valent `null`, en attendant le repli de A3.
+Un épisode compte au moins `MIN_WET_STEPS` pas sur toute la série, passé compris : la fin d'une averse en cours reste `raining`, même à un seul pas de la fin. Un pas sec coupe l'épisode.
 
 ### `PUT /v1/subscriptions/{install_id}`
 
