@@ -65,7 +65,7 @@ orca agent launch --agent codex --worktree id:<repoId>::<worktreePath> --prompt 
 
 | Étape | Outil |
 | --- | --- |
-| Dev Android | Build de développement, téléphone ou émulateur |
+| Dev Android | Build de développement, téléphone ou émulateur. Sous Windows, le natif se construit hors du dépôt, voir ci-dessous |
 | Dev iOS | Mac et Xcode. Expo Go ne convient pas à cause des widgets |
 | Bêta | TestFlight, test interne Play |
 | Serveur | Image Docker, déployée sur demande explicite |
@@ -78,6 +78,11 @@ Avant la première soumission :
 - [ ] Clés APNs et FCM en variables d'environnement
 - [ ] Justification de la localisation, premier plan seulement
 - [ ] `security-review` passé
+
+### Build Android sous Windows
+
+Le chemin du dépôt est trop long pour CMake, et un lecteur `subst` échoue car Node résout le vrai chemin. Copier `app/` vers `C:\iirpp`, puis y lancer `expo prebuild -p android` et `gradlew assembleDebug -PreactNativeArchitectures=x86_64`. À refaire seulement si une dépendance native change : le JS vient de Metro, lancé depuis le dépôt.
+Arrêter ensuite le daemon avec `gradlew --stop`, il garde plusieurs Go de RAM.
 
 ## Quand une règle gêne
 
