@@ -28,9 +28,9 @@ Rien d'autre ne démarre avant S1 et S2.
 
 | ID | Tâche | Critère de fin | Statut |
 | --- | --- | --- | --- |
-| B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | en cours : tourne sur émulateur Android, pas encore sur téléphone |
+| B1 | Créer le projet Expo, tokens et polices | Build de développement sur téléphone | en cours : APK release autonome construit et vu sur émulateur. Pas encore installé sur le Pixel 8 Pro |
 | B2 | Écran principal et bande de pluie | Quatre états, plus hors ligne. Checklist design | en cours : états vus sur émulateur, clair et sombre. Reste la checklist : iOS, lecteur d'écran, animations réduites, `unslop` |
-| B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | en cours |
+| B3 | Position actuelle et recherche de ville | Refus de localisation géré : recherche proposée. Ville trouvée dès 3 lettres | en cours : refus et recherche vus sur émulateur. Reste à voir une position réussie : sur émulateur, le GPS simulé finit en « Position introuvable » |
 | B4 | Réglages et À propos | Attribution visible | à faire |
 
 ## M3 : widgets
