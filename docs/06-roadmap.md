@@ -19,10 +19,10 @@ Rien d'autre ne démarre avant S1 et S2.
 
 | ID | Tâche | Critère de fin | Statut |
 | --- | --- | --- | --- |
-| A1 | Ingestion toutes les 5 min, grille en mémoire | Tourne 24 h sans trou non détecté | en cours : jeton renouvelé seul à 55 min sur l'API réelle. Veille du PC la nuit du 5 novembre : trou de 114 runs détecté, reprise seule. 24 h à refaire sur une machine sans veille |
+| A1 | Ingestion toutes les 5 min, grille en mémoire | Tourne 24 h sans trou non détecté | en cours : jeton renouvelé seul à 55 min sur l'API réelle. Veille du PC la nuit du 5 novembre : trou de 114 runs détecté, reprise seule. 24 h relancées sur Dokploy le 6 novembre à 13 h 32 UTC, à relire le 7 |
 | A2 | `GET /v1/rain`, états et fraîcheur | Tests de `05-process-dev.md` verts | fini : tests verts, réponse réelle `raining` puis `unknown` à 20 min |
 | A3 | Repli Open-Meteo | Hors France ou PIAF en panne : `source` et `step_minutes` corrects | à faire |
-| A4 | Déploiement Docker | URL HTTPS publique qui répond | en cours : `server/Dockerfile` écrit, image pas encore construite |
+| A4 | Déploiement Docker | URL HTTPS publique qui répond | fini : `https://rain.alanmlcrt.fr/v1/rain` répond `dry` avec le run de 13 h 20 UTC le 6 novembre |
 
 ## M2 : app
 
