@@ -31,7 +31,8 @@ Une seule crate, modules dans `src/` :
 | Module | Rôle |
 | --- | --- |
 | `ingest` | Télécharge chaque run PIAF, le décode, remplace la grille en mémoire d'un coup |
-| `forecast` | Pour un point : série de 39 pas, début et fin de pluie, état |
+| `forecast` | Pour un point : série de pluie, début et fin, état |
+| `fallback` | Repli Open-Meteo, en cache par zone |
 | `api` | Routes HTTP |
 | `alerts` | Après chaque run, décide qui notifier |
 | `push` | Envoi APNs et FCM |
@@ -42,6 +43,11 @@ Le dernier run vient de `GetCapabilities` (58 Ko en gzip), interrogé toutes les
 Les valeurs `PT5M` sont des cumuls en mm : les multiplier par 12 pour obtenir des mm/h. L'échéance `300` couvre `[run, run + 5 min]`, et la valeur est étiquetée en fin de pas. En `f32`, une grille de 39 échéances occupe environ 270 Mo, le double pendant le remplacement.
 La géométrie se lit dans chaque fichier GRIB, car le WCS recale la zone demandée sur la grille. Tout fichier dont le run, l'échéance ou la grille ne correspondent pas à la demande fait échouer le run.
 Le jeton est géré par le serveur : voir « Authentification Météo-France ».
+
+Le repli prend la main quand PIAF répond `unknown` : hors zone, ou run périmé. Il demande à Open-Meteo 2 pas passés et 13 à venir, soit 15 pas de 15 min. Les valeurs sont des cumuls sur les 15 minutes précédentes : les multiplier par 4 pour obtenir des mm/h.
+Le cache garde 15 min une réponse par zone de 0,1°, environ 11 km. Open-Meteo reçoit le centre de la zone, jamais la position demandée. Le serveur s'arrête à 9 000 appels par jour, sous la limite de 10 000 de D1. Open-Meteo muet, réponse trouée ou quota atteint : la réponse reste `unknown`. Ne jamais journaliser une erreur `reqwest` : son texte contient l'URL, donc la zone.
+Hors d'Europe centrale et d'Amérique du Nord, Open-Meteo interpole des données horaires : l'affichage approché `~` couvre ce cas.
+`MIN_WET_STEPS` compte en pas de 5 min : à 15 min, un seul pas suffit à faire un épisode.
 
 `ponytail:` une seule zone fixe (D9). Plusieurs lieux : zones à la demande, limitées à environ 12 par les 39 requêtes de chaque run.
 Toutes les réponses portent `source` et `run_at`, car la licence impose de citer la source et la date de mise à jour.
@@ -126,12 +132,14 @@ Coordonnées invalides (hors de ±90° et ±180°, absentes ou illisibles) : `40
 
 | Champ | Règle |
 | --- | --- |
-| `series` | 39 pas du run, passés compris. `t` est la fin du pas. Vide en `unknown` |
+| `series` | Tous les pas de la source, passés compris : 39 pour PIAF, 15 pour Open-Meteo. `t` est la fin du pas. Vide en `unknown` |
+| `source` | `piaf` ou `open_meteo` |
+| `run_at` | Heure du run PIAF. Pour Open-Meteo, qui ne la donne pas : heure de notre appel |
 | `rain_starts_at` | Début du premier pas de l'épisode à venir ou en cours, donc déjà passé en `raining` |
 | `rain_ends_at` | `null` si la pluie dure jusqu'à `horizon_ends_at` |
-| `horizon_ends_at` | `run_at` + 195 min, fin du dernier pas |
+| `horizon_ends_at` | Fin du dernier pas : `run_at` + 195 min pour PIAF |
 
-`unknown` : `series` vide, `step_minutes` et dates de pluie à `null`, `Cache-Control: no-store`. Run périmé : `source` et `run_at` restent ceux du dernier run. Aucun run ou point hors zone : ils valent `null`, en attendant le repli de A3.
+`unknown` : `series` vide, `step_minutes` et dates de pluie à `null`, `Cache-Control: no-store`. Run périmé : `source` et `run_at` restent ceux du dernier run. Aucun run ou point hors zone : ils valent `null`. Ces cas passent d'abord par le repli, `unknown` veut dire qu'il a échoué aussi.
 Un épisode compte au moins `MIN_WET_STEPS` pas sur toute la série, passé compris : la fin d'une averse en cours reste `raining`, même à un seul pas de la fin. Un pas sec coupe l'épisode.
 
 ### `PUT /v1/subscriptions/{install_id}`

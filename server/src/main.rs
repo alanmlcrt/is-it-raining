@@ -1,4 +1,5 @@
 mod api;
+mod fallback;
 mod forecast;
 mod ingest;
 
@@ -7,7 +8,7 @@ use std::{env, str::FromStr};
 use chrono::Duration;
 use tokio::{net::TcpListener, sync::watch};
 
-use crate::{forecast::Params, ingest::Piaf};
+use crate::{fallback::Fallback, forecast::Params, ingest::Piaf};
 
 /// Variable optionnelle. Une valeur illisible arrête le démarrage plutôt que d'être ignorée.
 fn env_or<T: FromStr>(name: &str, default: T) -> T {
@@ -40,7 +41,7 @@ async fn main() {
 
     let listener = TcpListener::bind(&addr).await.expect("port indisponible");
     eprintln!("api : écoute sur {addr}");
-    axum::serve(listener, api::router(rx, params))
+    axum::serve(listener, api::router(rx, params, Fallback::new()))
         .await
         .expect("serveur HTTP arrêté");
 }

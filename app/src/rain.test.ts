@@ -67,6 +67,19 @@ test('pluie sans fin dans l’horizon', () => {
   assert.deepEqual(a, { lead: 'Il pleut pour au moins', big: '3 h' });
 });
 
+test('repli à 15 min : arrondi, approché et attribué à Open-Meteo', () => {
+  const soon = rain({
+    state: 'rain_soon',
+    source: 'open_meteo',
+    step_minutes: 15,
+    rain_starts_at: '2026-11-05T15:05:00Z',
+  });
+  const a = answer(soon, NOW);
+  assert.equal(a.big, '~30 min');
+  assert.equal(spokenAnswer(a), 'Pluie dans environ 30 minutes');
+  assert.match(sourceLine(soon, NOW), /^Open-Meteo, /);
+});
+
 test('la source reste affichée, même sans donnée', () => {
   assert.equal(sourceLine(rain({}), NOW), 'Météo-France, il y a 15 min');
   assert.equal(sourceLine(null, NOW), 'Météo-France, aucune donnée récente');

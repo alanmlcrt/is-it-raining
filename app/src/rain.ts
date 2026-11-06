@@ -19,7 +19,7 @@ export type Rain = {
 export type Answer = { lead: string; big?: string; detail?: string };
 
 const MINUTE = 60_000;
-const SOURCE_NAMES: Record<string, string> = { piaf: 'Météo-France' };
+const SOURCE_NAMES: Record<string, string> = { piaf: 'Météo-France', open_meteo: 'Open-Meteo' };
 /** Pluie forte en haut de l'échelle des barres, en mm/h. */
 const BAR_SCALE_MM_H = 10;
 
@@ -52,10 +52,12 @@ export function answer(rain: Rain | null, now: Date): Answer {
     return { lead: 'Pas de pluie avant', big: clock(rain.horizon_ends_at) };
   }
   const start = rain.rain_starts_at;
+  const step = rain.step_minutes ?? 5;
   if (rain.state === 'rain_soon' && start !== null && new Date(start) > now) {
     return {
       lead: 'Pluie dans',
-      big: duration(minutesUntil(start, now, rain.step_minutes ?? 5)),
+      // Pas de fausse précision : une source à 15 min s'affiche approchée.
+      big: `${step > 5 ? '~' : ''}${duration(minutesUntil(start, now, step))}`,
       detail: rain.rain_ends_at === null ? undefined : `Jusque vers ${clock(rain.rain_ends_at)}`,
     };
   }
@@ -102,6 +104,7 @@ export function spokenAnswer({ lead, big, detail }: Answer): string {
 
 function speak(text: string): string {
   return text
+    .replace(/~/g, 'environ ')
     .replace(/(\d+) h (\d+)/g, '$1 heures $2')
     .replace(/(\d+) h\b/g, '$1 heures')
     .replace(/(\d+) min\b/g, '$1 minutes');

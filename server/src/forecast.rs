@@ -31,6 +31,16 @@ impl Grid {
     }
 }
 
+/// Une série prête à interpréter, quelle que soit sa source. `mm_h[i]` couvre le pas `i` depuis
+/// `start`.
+pub struct Series<'a> {
+    pub source: &'static str,
+    pub step_minutes: i64,
+    pub start: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub mm_h: &'a [f32],
+}
+
 #[derive(Clone)]
 pub struct Params {
     pub rain_threshold_mm_h: f32,
@@ -109,7 +119,7 @@ pub fn rain_at(grid: Option<&Grid>, lat: f64, lon: f64, now: DateTime<Utc>, p: &
     let Some(grid) = grid else {
         return Rain::unknown(None);
     };
-    // Hors grille : rien de PIAF à citer. Le repli Open-Meteo viendra ici (A3).
+    // Hors grille : rien de PIAF à citer. L'API passe alors au repli.
     let Some(mm_h) = grid.sample(lat, lon) else {
         return Rain::unknown(None);
     };
@@ -118,11 +128,28 @@ pub fn rain_at(grid: Option<&Grid>, lat: f64, lon: f64, now: DateTime<Utc>, p: &
         return Rain::unknown(Some(grid.run_at));
     }
 
-    let at = |i: usize| grid.run_at + Duration::minutes(STEP_MINUTES * i as i64);
-    let wet: Vec<bool> = mm_h.iter().map(|v| *v >= p.rain_threshold_mm_h).collect();
+    from_series(
+        &Series {
+            source: SOURCE,
+            step_minutes: STEP_MINUTES,
+            start: grid.run_at,
+            updated_at: grid.run_at,
+            mm_h: &mm_h,
+        },
+        now,
+        p,
+    )
+}
+
+/// L'état et les dates de pluie d'une série fraîche. La fraîcheur est vérifiée par l'appelant.
+pub fn from_series(s: &Series, now: DateTime<Utc>, p: &Params) -> Rain {
+    let at = |i: usize| s.start + Duration::minutes(s.step_minutes * i as i64);
+    let wet: Vec<bool> = s.mm_h.iter().map(|v| *v >= p.rain_threshold_mm_h).collect();
+    // `min_wet_steps` compte en pas PIAF : la même durée minimale, quel que soit le pas.
+    let min_steps = (p.min_wet_steps * STEP_MINUTES as usize).div_ceil(s.step_minutes as usize);
     // Épisodes cherchés sur toute la série, passé compris : les derniers pas d'une averse en
     // cours comptent, même s'il en reste moins que `min_wet_steps` devant nous.
-    let next = episodes(&wet, p.min_wet_steps)
+    let next = episodes(&wet, min_steps)
         .into_iter()
         .find(|(_, end)| at(*end) > now);
 
@@ -133,14 +160,15 @@ pub fn rain_at(grid: Option<&Grid>, lat: f64, lon: f64, now: DateTime<Utc>, p: &
     };
     Rain {
         state,
-        source: Some(SOURCE),
-        step_minutes: Some(STEP_MINUTES),
-        run_at: Some(grid.run_at),
+        source: Some(s.source),
+        step_minutes: Some(s.step_minutes),
+        run_at: Some(s.updated_at),
         rain_starts_at: next.map(|(start, _)| at(start)),
         // Pas de fin annoncée si la pluie dure jusqu'au bout de l'horizon.
-        rain_ends_at: next.and_then(|(_, end)| (end < mm_h.len()).then(|| at(end))),
-        horizon_ends_at: Some(at(mm_h.len())),
-        series: mm_h
+        rain_ends_at: next.and_then(|(_, end)| (end < s.mm_h.len()).then(|| at(end))),
+        horizon_ends_at: Some(at(s.mm_h.len())),
+        series: s
+            .mm_h
             .iter()
             .enumerate()
             .map(|(i, v)| Step {

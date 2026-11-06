@@ -11,7 +11,10 @@ use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
 use tokio::sync::watch;
 
-use crate::forecast::{self, Grid, Params, Rain};
+use crate::{
+    fallback::Fallback,
+    forecast::{self, Grid, Params, Rain, State as RainState},
+};
 
 /// Un run arrive 10 min après son horaire, et le suivant 5 min plus tard.
 const NEXT_RUN_AFTER_MIN: i64 = 15;
@@ -20,6 +23,7 @@ const NEXT_RUN_AFTER_MIN: i64 = 15;
 struct App {
     grid: watch::Receiver<Option<Arc<Grid>>>,
     params: Params,
+    fallback: Arc<Fallback>,
 }
 
 #[derive(Deserialize)]
@@ -28,10 +32,16 @@ struct Point {
     lon: f64,
 }
 
-pub fn router(grid: watch::Receiver<Option<Arc<Grid>>>, params: Params) -> Router {
-    Router::new()
-        .route("/v1/rain", get(rain))
-        .with_state(App { grid, params })
+pub fn router(
+    grid: watch::Receiver<Option<Arc<Grid>>>,
+    params: Params,
+    fallback: Fallback,
+) -> Router {
+    Router::new().route("/v1/rain", get(rain)).with_state(App {
+        grid,
+        params,
+        fallback: Arc::new(fallback),
+    })
 }
 
 /// Ne jamais journaliser `lat` et `lon` ici.
@@ -42,7 +52,13 @@ async fn rain(State(app): State<App>, Query(p): Query<Point>) -> Response {
     }
     let grid = app.grid.borrow().clone();
     let now = Utc::now();
-    let rain = forecast::rain_at(grid.as_deref(), p.lat, p.lon, now, &app.params);
+    let mut rain = forecast::rain_at(grid.as_deref(), p.lat, p.lon, now, &app.params);
+    // Hors zone ou PIAF en panne. Sans repli non plus, la réponse reste `unknown`.
+    if rain.state == RainState::Unknown
+        && let Some(fallback) = app.fallback.rain(p.lat, p.lon, now, &app.params).await
+    {
+        rain = fallback;
+    }
     (
         [(
             header::CACHE_CONTROL,
@@ -70,12 +86,14 @@ fn cache_control(rain: &Rain, now: DateTime<Utc>, max_data_age: Duration) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fallback::tests::{down, fake};
     use tokio::net::TcpListener;
 
     #[derive(Deserialize)]
     struct Body {
         state: String,
         source: Option<String>,
+        step_minutes: Option<i64>,
         series: Vec<Step>,
     }
 
@@ -85,6 +103,10 @@ mod tests {
     }
 
     async fn serve(grid: Option<Grid>) -> String {
+        serve_with(grid, down()).await
+    }
+
+    async fn serve_with(grid: Option<Grid>, fallback: Fallback) -> String {
         let (tx, rx) = watch::channel(grid.map(Arc::new));
         let params = Params {
             rain_threshold_mm_h: 0.1,
@@ -95,7 +117,9 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
             let _keep_open = tx;
-            axum::serve(listener, router(rx, params)).await.unwrap();
+            axum::serve(listener, router(rx, params, fallback))
+                .await
+                .unwrap();
         });
         format!("http://{addr}/v1/rain")
     }
@@ -161,6 +185,40 @@ mod tests {
             .unwrap();
         let body: Body = res.json().await.unwrap();
         assert_eq!(body.state, "unknown");
+    }
+
+    #[tokio::test]
+    async fn piaf_perime_passe_au_repli() {
+        let (fallback, _, _) = fake(vec![0.0; 15]).await;
+        let url = serve_with(Some(grid(30)), fallback).await;
+        let res = reqwest::get(format!("{url}?lat=48.86&lon=2.35"))
+            .await
+            .unwrap();
+        let cache = res.headers()["cache-control"].to_str().unwrap().to_string();
+        assert!(cache.starts_with("private, max-age="), "{cache}");
+        let body: Body = res.json().await.unwrap();
+        assert_eq!(body.state, "dry");
+        assert_eq!(body.source.as_deref(), Some("open_meteo"));
+        assert_eq!(body.step_minutes, Some(15));
+    }
+
+    #[tokio::test]
+    async fn hors_zone_passe_au_repli() {
+        let (fallback, _, _) = fake(vec![0.0; 15]).await;
+        let url = serve_with(Some(grid(12)), fallback).await;
+        let res = reqwest::get(format!("{url}?lat=40&lon=-74")).await.unwrap();
+        let body: Body = res.json().await.unwrap();
+        assert_eq!(body.source.as_deref(), Some("open_meteo"));
+    }
+
+    #[tokio::test]
+    async fn piaf_frais_ne_touche_pas_au_repli() {
+        let (fallback, calls, _) = fake(vec![0.0; 15]).await;
+        let url = serve_with(Some(grid(12)), fallback).await;
+        reqwest::get(format!("{url}?lat=48.86&lon=2.35"))
+            .await
+            .unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 
     #[tokio::test]
