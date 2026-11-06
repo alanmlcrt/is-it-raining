@@ -40,12 +40,21 @@ type Props = {
   visible: boolean;
   notice?: string;
   insetTop: number;
+  locating: boolean;
   onClose: () => void;
   onLocate: () => void;
   onPick: (place: Place) => void;
 };
 
-export function PlaceSheet({ visible, notice, insetTop, onClose, onLocate, onPick }: Props) {
+export function PlaceSheet({
+  visible,
+  notice,
+  insetTop,
+  locating,
+  onClose,
+  onLocate,
+  onPick,
+}: Props) {
   const colors = useColors();
   const [query, setQuery] = useState('');
   const { cities, message } = useCitySearch(query);
@@ -79,8 +88,16 @@ export function PlaceSheet({ visible, notice, insetTop, onClose, onLocate, onPic
 
         {notice && <Text style={[type.detail, styles.note, { color: colors.text2 }]}>{notice}</Text>}
 
-        <Pressable accessibilityRole="button" onPress={onLocate} style={styles.row}>
-          <Text style={[type.detail, { color: colors.text }]}>Ma position</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ busy: locating, disabled: locating }}
+          disabled={locating}
+          onPress={onLocate}
+          style={styles.row}
+        >
+          <Text style={[type.detail, { color: locating ? colors.text2 : colors.text }]}>
+            {locating ? 'Position en cours' : 'Ma position'}
+          </Text>
         </Pressable>
 
         <FlatList

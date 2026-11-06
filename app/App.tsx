@@ -37,6 +37,8 @@ import { band, motion, size, space, type, useColors } from './src/theme';
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const REFRESH_MS = 60_000;
 const TIMEOUT_MS = 10_000;
+/** Une position récente évite d'attendre le GPS : 2 décimales ne bougent pas en 10 min à pied. */
+const LAST_POSITION_MAX_AGE_MS = 10 * 60_000;
 // ponytail: marges système approchées. react-native-safe-area-context ne compile pas sous
 // Windows (chemins trop longs pour ninja). À remettre avec HeroUI (B4), qui l'exige, et
 // indispensable pour iOS : encoche et barre d'accueil ne sont pas gérées ici.
@@ -111,9 +113,12 @@ function usePlace() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!permission.granted) return permission.canAskAgain ? 'denied' : 'blocked';
-      const { coords } = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+      const recent = await Location.getLastKnownPositionAsync({
+        maxAge: LAST_POSITION_MAX_AGE_MS,
       });
+      const { coords } =
+        recent ??
+        (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
       const lat = round2(coords.latitude);
       const lon = round2(coords.longitude);
       const [address] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon }).catch(
@@ -272,6 +277,7 @@ function Screen() {
       <StatusBar style="auto" />
       <PlaceSheet
         insetTop={INSET_TOP}
+        locating={locating}
         notice={notice}
         onClose={() => setSheetOpen(false)}
         onLocate={onLocate}
