@@ -180,6 +180,16 @@ Position du widget : dernière position partagée par l'app via App Group sur iO
 
 ## Hébergement
 
-Un conteneur Docker, un volume pour SQLite, sur l'infrastructure Dokploy existante. Un serveur unique suffit : un redémarrage coûte au plus un run.
+Un conteneur Docker sur l'infrastructure Dokploy existante. Un serveur unique suffit : un redémarrage coûte au plus un run. Le volume pour SQLite arrivera avec N1.
+
+GitHub Actions construit `server/Dockerfile` à chaque push sur `main` et publie `ghcr.io/alanmlcrt/is-it-raining-server`. La machine Dokploy (1 CPU, 4 Go, partagée avec d'autres services) ne compile rien : elle récupère l'image et sert le port 8080 en HTTPS. On y déploie sur demande explicite.
+
+| Variable de production | Valeur |
+| --- | --- |
+| `METEOFRANCE_APP_ID` | Secret d'une application Météo-France dédiée à la production, saisi dans Dokploy |
+| `PIAF_BBOX` | `2.2,2.5,48.8,48.95` |
+| `PIAF_MAX_RUNS` | Absente, sinon l'ingestion s'arrête |
+
+`BIND_ADDR` vaut `0.0.0.0:8080` dans l'image.
 
 `ponytail:` SQLite et instance unique. Passer à Postgres et à plusieurs instances seulement si la boucle d'alertes ne tient plus dans les 5 min d'un run.

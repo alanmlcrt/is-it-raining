@@ -1,0 +1,20 @@
+# Construit l'image ici : la machine Dokploy (1 CPU, 4 Go) ne peut pas compiler sans gêner ses autres services.
+name: server-image
+on:
+  push:
+    branches: [main]
+    paths: [server/**, .github/workflows/server-image.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/alanmlcrt/is-it-raining-server
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - run: docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" server
+      - run: docker push --all-tags "$IMAGE"

@@ -18,11 +18,17 @@ Open-Meteo est le plan B le plus simple, mais avec un pas de 15 min et une mise 
 | **Open-Meteo** `minutely_15` | Natif en Europe centrale et de l'Ouest et Amérique du Nord. Ailleurs : horaire interpolé | 15 min | 6 h (AROME 15 min) | Horaire pour AROME | CC BY 4.0. Gratuit si non commercial et sous 10 000 appels/jour | **Repli**, et prototype le plus rapide |
 | MET Norway Nowcast 2.0 | Norvège, Suède, Finlande, Danemark | 5 min (tiers) | 2 h | 5 min | Gratuit, User-Agent identifié obligatoire | Hors zone. Candidat pour une extension nordique |
 | DWD RADVOR | Allemagne | 5 min | 2 h | 5 min | Open data avec attribution | Fichiers RADOLAN binaires. Candidat pour l'Allemagne |
-| Apple WeatherKit | Certaines régions | Minute | 1 h | Non publié | 500 000 appels/mois inclus dans le compte Apple Developer | Pas ouvert, couverture France non confirmée |
+| Apple WeatherKit | Australie, Irlande, Japon, Royaume-Uni, États-Unis (page Apple du 5 juin 2026) | Minute | 1 h | Non publié | 500 000 appels/mois inclus dans le compte Apple Developer | Écarté : France absente de la liste |
+| Rainbow Weather | Annoncée mondiale, France non testée | 1 min | 4 h | 10 min | 5 000 requêtes/mois gratuites, puis 0,10 $ pour 1 000. Clé dans une app : conditions non trouvées | Candidat à évaluer comme source serveur hors France |
+| AccuWeather MinuteCast | Annoncée mondiale, France non testée | Minute | 2 h | Non vérifié | 50 appels/jour gratuits, puis 25 $/mois pour 10 000 | Écarté : quota et coût |
+| OpenWeather One Call | Non précisée | Minute | 1 h | 10 min | 1 000 appels/jour gratuits | Écarté : modèle propriétaire, radar non mentionné |
+| Google Weather | Mondiale | Heure | 240 h | Non vérifié | Non vérifié | Écarté : pas de prévision à la minute |
 | RainViewer API | Monde | – | – | – | **Nowcast retiré le 1er janvier 2026** | Écarté |
 | API privée de l'app Météo-France | France | Non vérifié | 1 h | Interrogée toutes les 5 min par la communauté | Non documentée, jeton extrait de l'app | **Exclu** : aucun droit, peut casser |
 | Buienradar | Pays-Bas | Non vérifié | 2 h | Non vérifié | Commercial sur autorisation | Écarté |
-| Pirate Weather | Non vérifié | Minute | Non vérifié | Non vérifié | Un rapport d'utilisateur signale un minutely pauvre, possiblement ancien | Écarté sans test |
+| Pirate Weather | Hors Amérique du Nord : GFS horaire d'après sa doc, Europe non confirmée | Minute | 1 h | Non vérifié | Un rapport d'utilisateur signale un minutely pauvre, possiblement ancien | Écarté sans test |
+
+Revu le 6 novembre 2026 : se passer du serveur a été écarté. Une clé commerciale dans l'app reste extractible, un widget seul consomme environ 2 900 appels par mois et par téléphone, et les notifications iOS exigent un serveur de toute façon.
 
 ### PIAF : licence et accès
 
